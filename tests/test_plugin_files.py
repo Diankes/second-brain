@@ -72,9 +72,17 @@ def test_hooks_json_points_at_existing_scripts_and_real_tools():
                     ]
                 else:
                     assert hook["type"] == "mcp_tool" and hook["server"] == "sqlite-memory"
-                    assert hook["tool"] in {"append_event", "get_resume_context"}
+                    assert hook["tool"] in {"append_event", "get_resume_context", "snapshot"}
                     if hook["tool"] == "append_event":
                         assert hook["input"]["kind"] in v.RAW_KINDS
+                    if hook["tool"] == "get_resume_context":
+                        excluded = set(hook["input"]["exclude_kinds"].split(","))
+                        assert excluded == set(v.RAW_KINDS)
+    stop_tools = [h["type"] for h in hooks["Stop"][0]["hooks"]]
+    assert stop_tools == ["command", "mcp_tool"]  # cadence check plus response capture
+    for event in ("PreCompact", "SessionEnd"):
+        tools = [h["tool"] for h in hooks[event][0]["hooks"]]
+        assert tools == ["append_event", "snapshot"], event
     pre = hooks["PreToolUse"][0]
     assert pre["matcher"] == "mcp__sqlite-memory__append_event|mcp__sqlite-memory__checkpoint"
 

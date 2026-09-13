@@ -7,7 +7,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-RAW_KINDS = ("prompt", "compaction", "session-end")  # written by hooks, never by the model
+RAW_KINDS = ("prompt", "compaction", "session-end", "response")  # hooks only, never the model
 SYNTHESIS_KINDS = ("insight", "decision", "reading", "open-question", "note")
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 DB_ENV = "MCP_SQLITE_DB"

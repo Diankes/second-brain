@@ -7,11 +7,16 @@ months. It is policy on top of the server's tools, plus hooks that make the impo
 happen whether or not the model feels like it. The shipped tag vocabulary leans towards
 math-heavy study; the mechanism does not care what the domain is.
 
+**Just want to use this day to day?** Start with [the quickstart](references/quickstart.md) —
+everything below here is the technical reference underneath it.
+
 Two layers, kept apart on purpose:
 
-- **Raw layer, hook-driven, always happens.** Every prompt, every context compaction and every
-  session end is written to the memory log by a hook calling `append_event` on the running
-  server. No model judgment is involved.
+- **Raw layer, hook-driven, always happens.** Every prompt, every response, every context
+  compaction and every session end is written to the memory log by a hook calling
+  `append_event` on the running server, and a snapshot of the database file is taken at
+  compaction and session end. No model judgment and no model tokens are involved: the harness
+  calls the tools directly.
 - **Curated layer, model-written, format-enforced.** Insights, decisions, readings, open
   questions and checkpoints are written by the model from templates, with LaTeX-only math, a
   controlled tag vocabulary, registered sources and explicit links. A hook validates every one
@@ -27,16 +32,36 @@ the way revisiting an old codebase does.
 |---|---|---|
 | `UserPromptSubmit` | `mcp_tool` | `append_event(kind="prompt", content=<the prompt>)` |
 | `PreCompact` | `mcp_tool` | `append_event(kind="compaction", ...)` with trigger and session id |
+| `PreCompact` | `mcp_tool` | `snapshot(reason="compaction: <trigger>")`: a database snapshot before the context is compacted |
 | `SessionEnd` | `mcp_tool` | `append_event(kind="session-end", ...)` with the reason |
-| `SessionStart` (compact) | `mcp_tool` | `get_resume_context(max_events=40, exclude_kinds="prompt,compaction,session-end")` injected into context after compaction |
+| `SessionEnd` | `mcp_tool` | `snapshot(reason="session-end: <reason>")`: a database snapshot as the session closes |
+| `SessionStart` (compact) | `mcp_tool` | `get_resume_context(max_events=40, exclude_kinds="prompt,compaction,session-end,response")` injected into context after compaction |
 | `SessionStart` (all) | command | injects `references/core-rules.md` plus the database path and cadence |
 | `Stop` | command | `scripts/cadence.py`: blocks the turn once when prompts since the last curated entry reach the threshold |
+| `Stop` | `mcp_tool` | `append_event(kind="response", content=<last_assistant_message>)`: the model's own reply, verbatim |
 | `PreToolUse` on `append_event` and `checkpoint` | command | `scripts/validate_entry.py`: template, tags, math, links, sources, no images |
 
 Hooks call `append_event` on the same server process the model uses, so every raw event is
 hashed and chained by the server and lands in `query_log` like any other call. Hooks never write
 checkpoints: `get_resume_context` shows the latest checkpoint as the state summary, and a
 mechanical one would hide the real one.
+
+The raw `response` events are the model's verbatim replies. They exist so the record is
+complete; the curated layer stays a deliberate, sparse distillation and is not a substitute
+for them. The `synthesis` view and the resume call exclude `response` along with the other raw
+kinds, so nothing downstream gets noisier.
+
+**Upgrading an existing database** to this version of the plugin: the `synthesis` view stored
+in the database still excludes only the three older raw kinds. Run once, through the server:
+
+```
+create_view(name="synthesis",
+            select_sql="SELECT id, ts, session, kind, content FROM memory_events WHERE kind NOT IN ('prompt', 'compaction', 'session-end', 'response')",
+            description="curated entries only (insight, decision, reading, open-question, note); hook-written raw events are excluded",
+            replace=true)
+```
+
+The other views build on `synthesis`, so nothing else changes.
 
 ## What the validator enforces
 
@@ -77,7 +102,8 @@ way in and parsed on the way out. At 6,000 events the topic index takes about 20
 
 ## Install
 
-Requires the server at v0.2.0 or later, [uv](https://docs.astral.sh/uv/) and ripgrep.
+Requires the server at v0.3.0 or later (the `snapshot` tool), [uv](https://docs.astral.sh/uv/)
+and ripgrep.
 
 1. Use one folder for the work as the Claude Code project, for example `F:\study`. The
    plugin is project-scoped on purpose: personal hooks would fire in every coding project too.
@@ -106,6 +132,7 @@ Requires the server at v0.2.0 or later, [uv](https://docs.astral.sh/uv/) and rip
          "mcp__sqlite-memory__get_schema",
          "mcp__sqlite-memory__create_view",
          "mcp__sqlite-memory__append_event",
+         "mcp__sqlite-memory__snapshot",
          "mcp__sqlite-memory__verify_chain",
          "mcp__sqlite-memory__checkpoint",
          "mcp__sqlite-memory__get_resume_context",
@@ -120,7 +147,7 @@ Requires the server at v0.2.0 or later, [uv](https://docs.astral.sh/uv/) and rip
    long-form notes:
 
    ```
-   claude mcp add sqlite-memory --scope local -- uvx --from git+https://github.com/Diankes/mcp-sqlite-memory@v0.2.0 mcp-sqlite-memory --db F:\study\memory.db --max-cell-chars 8000 --max-result-bytes 131072
+   claude mcp add sqlite-memory --scope local -- uvx --from git+https://github.com/Diankes/mcp-sqlite-memory@v0.3.0 mcp-sqlite-memory --db F:\study\memory.db --max-cell-chars 8000 --max-result-bytes 131072
    ```
 
    The server name must be `sqlite-memory`: the hooks address it by that name.
@@ -144,7 +171,7 @@ change the setting, no code involved.
 
 ## Verified behaviour
 
-Tested against Claude Code 2.1.263 on Windows with a throwaway `claude -p` session:
+Tested against Claude Code 2.1.263 and 2.1.270 on Windows with throwaway `claude -p` sessions:
 
 - `mcp_tool` hooks write through the running server: the prompt and session-end events landed
   in `memory_events` and in `query_log`.
@@ -162,6 +189,15 @@ Tested against Claude Code 2.1.263 on Windows with a throwaway `claude -p` sessi
   the prompt event was written by the hook, the Stop hook blocked once, the model answered it
   with a checkpoint in the exact template and a canonical tag, the validator passed it, and the
   session ended without looping. `env` values from settings reached the hook scripts.
+- `Stop` fires more than once per visible turn when `cadence.py` blocks. With the cadence at 1
+  and the prompt "Reply with exactly the word hello.", the log read: `prompt` (hook),
+  `get_resume_context` (model, per the injected rules), `response` (first Stop, blocked),
+  `checkpoint` (model, after one refusal by the validator), `response` (second Stop, allowed),
+  `session-end` and `snapshot` (SessionEnd hooks). Two `response` events for one visible turn
+  is correct: both are genuine final assistant text. In that run both were "hello", because
+  the checkpoint is a tool call with no assistant text and the model then repeated its one-word
+  answer; a chattier model would leave two different texts. The snapshot file appeared in
+  `<db>.snapshots/` with the reason `session-end: other` in `query_log`.
 
 Known limit: `mcp_tool` hooks cannot run at `SessionStart` on a fresh start, so the first
 resume of a session depends on the model following the injected rules. After compaction the
@@ -175,7 +211,7 @@ uv run pytest
 uv run ruff check scripts tests
 ```
 
-The dev group installs the server from its v0.2.0 tag, so `tests/test_views.py` bootstraps the
+The dev group installs the server from a release tag, so `tests/test_views.py` bootstraps the
 views through the real `create_view` policy, and the validator and cadence tests run the hook
 scripts as subprocesses with the JSON Claude Code would send.
 
@@ -190,6 +226,7 @@ references/templates.md        entry and checkpoint templates
 references/tags.md             canonical tag vocabulary
 references/views.sql           sources table and the nine views
 references/resume-playbook.md  queries for resuming a topic
+references/quickstart.md       the plain-language day-to-day guide
 scripts/                       validate_entry.py, cadence.py, inject_rules.py, common.py
 tests/                         validator, cadence, views, file consistency
 ```

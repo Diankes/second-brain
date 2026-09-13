@@ -42,9 +42,9 @@ finds ids; `read_query` reads content. Every query below is a `read_query` call 
    WHERE t.tag = '#spectral-theorem' GROUP BY s.key
    ```
 7. Only when the tag index misses (the entry predates the tag, or the wording is all you have),
-   fall back to text search, which also scans raw prompts:
+   fall back to text search, which also scans raw prompts and responses:
    `search_text(pattern="Courant.Fischer", table="memory_events", columns=["content"],
-   where="kind NOT IN ('prompt','compaction','session-end')", ignore_case=true)`
+   where="kind NOT IN ('prompt','compaction','session-end','response')", ignore_case=true)`
    then read the ids it returns.
 
 After reloading, do not write a "resumed" entry: that is noise. Write the next real insight or

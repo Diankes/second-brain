@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS sources (
 -- view: synthesis
 -- description: curated entries only (insight, decision, reading, open-question, note); hook-written raw events are excluded
 SELECT id, ts, session, kind, content FROM memory_events
-WHERE kind NOT IN ('prompt', 'compaction', 'session-end');
+WHERE kind NOT IN ('prompt', 'compaction', 'session-end', 'response');
 
 -- view: event_lines
 -- description: helper: one row per line of each curated entry (id, line); the parsing views build on it

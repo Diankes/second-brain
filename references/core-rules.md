@@ -2,14 +2,15 @@
 
 The sqlite-memory server is your second brain for this work. It has two layers.
 
-- Raw layer: hooks record every prompt, every context compaction and every session end
-  automatically. Never write the kinds `prompt`, `compaction` or `session-end` yourself.
+- Raw layer: hooks record every prompt, every response, every context compaction and every
+  session end automatically. Never write the kinds `prompt`, `response`, `compaction` or
+  `session-end` yourself.
 - Curated layer: you write `insight`, `decision`, `reading`, `open-question` and `note` entries
   with `append_event`, and state summaries with `checkpoint`. This layer is the index. Write each
   entry so that reading it in six months ramps you back up on what was thought and why.
 
 Session start: unless this context already contains a resume block, call
-`get_resume_context(max_events=40, exclude_kinds="prompt,compaction,session-end")` first.
+`get_resume_context(max_events=40, exclude_kinds="prompt,compaction,session-end,response")` first.
 
 Hard rules. A hook validates every `append_event` and `checkpoint` and refuses violations with
 the reason; fix the text, never work around it.

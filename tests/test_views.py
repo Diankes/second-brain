@@ -71,6 +71,7 @@ async def test_views_parse_tags_links_and_sources(client, memory, db):
         "tags: #functional-analysis #spectral-theorem",
         "insight",
     )  # id 5
+    memory.append("the assistant's own reply\ntags: #optimization", "response")  # id 6, raw
 
     topics = text(
         await client.call_tool(
@@ -79,6 +80,7 @@ async def test_views_parse_tags_links_and_sources(client, memory, db):
     )
     assert "#spectral-theorem,4,5" in topics and "#linear-algebra,1,2" in topics
     assert "middle" not in topics  # the raw prompt is not parsed
+    assert "#optimization" not in topics  # neither is the raw response
     links = text(
         await client.call_tool(
             "read_query",

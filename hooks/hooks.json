@@ -24,6 +24,12 @@
               "kind": "compaction",
               "content": "context compaction (${trigger}) in ${cwd}; claude session ${session_id}"
             }
+          },
+          {
+            "type": "mcp_tool",
+            "server": "sqlite-memory",
+            "tool": "snapshot",
+            "input": { "reason": "compaction: ${trigger}" }
           }
         ]
       }
@@ -40,6 +46,13 @@
               "content": "session ended (${reason}); claude session ${session_id}"
             },
             "timeout": 20
+          },
+          {
+            "type": "mcp_tool",
+            "server": "sqlite-memory",
+            "tool": "snapshot",
+            "input": { "reason": "session-end: ${reason}" },
+            "timeout": 20
           }
         ]
       }
@@ -52,7 +65,7 @@
             "type": "mcp_tool",
             "server": "sqlite-memory",
             "tool": "get_resume_context",
-            "input": { "max_events": 40, "exclude_kinds": "prompt,compaction,session-end" }
+            "input": { "max_events": 40, "exclude_kinds": "prompt,compaction,session-end,response" }
           }
         ]
       },
@@ -75,6 +88,12 @@
             "command": "uv",
             "args": ["run", "--no-project", "--python", "3.12", "${CLAUDE_PLUGIN_ROOT}/scripts/cadence.py"],
             "timeout": 15
+          },
+          {
+            "type": "mcp_tool",
+            "server": "sqlite-memory",
+            "tool": "append_event",
+            "input": { "kind": "response", "content": "${last_assistant_message}" }
           }
         ]
       }

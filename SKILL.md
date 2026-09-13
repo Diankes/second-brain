@@ -27,7 +27,7 @@ Tool contracts, exactly as the server exposes them:
 
 | Layer | Kinds | Who writes | When |
 |---|---|---|---|
-| raw | `prompt`, `compaction`, `session-end` | hooks, automatically | every prompt, compaction, session end |
+| raw | `prompt`, `response`, `compaction`, `session-end` | hooks, automatically | every prompt, every response, compaction, session end |
 | curated | `insight`, `decision`, `reading`, `open-question`, `note`, plus checkpoints | you, by template | judgment calls, with a cadence floor |
 
 The raw layer is the record; never write those kinds yourself (the validator refuses). The
@@ -39,8 +39,8 @@ established. Chit-chat, restatements of the prompt and intermediate scratch work
 
 If the context already contains a resume block (the SessionStart hook injects one after
 compaction), continue from it. Otherwise call
-`get_resume_context(max_events=40, exclude_kinds="prompt,compaction,session-end")` first and
-read the checkpoint before doing anything else. If it reports `chain BROKEN`, tell the user
+`get_resume_context(max_events=40, exclude_kinds="prompt,compaction,session-end,response")`
+first and read the checkpoint before doing anything else. If it reports `chain BROKEN`, tell the user
 before writing anything.
 
 ## Writing a curated entry
