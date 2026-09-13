@@ -9,10 +9,7 @@ dependencies = []
 dev = [
     "pytest>=8",
     "ruff>=0.8",
-    # The server the hooks and views run against. The plugin needs v0.3.0 at runtime (the
-    # snapshot tool); the tests only exercise the policy and views, which v0.2.0 already has.
-    # Bump this pin to @v0.3.0 once that tag is on GitHub.
-    "mcp-sqlite-memory @ git+https://github.com/Diankes/mcp-sqlite-memory@v0.2.0",
+    "mcp-sqlite-memory @ git+https://github.com/Diankes/mcp-sqlite-memory@v0.3.0",
 ]
 
 [tool.uv]
