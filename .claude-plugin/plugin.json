@@ -1,0 +1,10 @@
+{
+  "name": "second-brain",
+  "displayName": "Second Brain",
+  "version": "0.1.0",
+  "description": "Policy and hooks that make the mcp-sqlite-memory server a second brain for long-running work: raw capture by hooks, curated entries by template, LaTeX-only math, a controlled tag vocabulary, and topic resume across months.",
+  "author": { "name": "Diankes", "url": "https://github.com/Diankes" },
+  "repository": "https://github.com/Diankes/second-brain",
+  "license": "MIT",
+  "keywords": ["claude-code", "memory", "sqlite", "second-brain", "mcp", "hooks"]
+}

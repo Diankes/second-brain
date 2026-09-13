@@ -1,0 +1,96 @@
+{
+  "description": "second-brain: hook-driven raw capture, validated curated entries, checkpoint cadence, rules injection",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "mcp_tool",
+            "server": "sqlite-memory",
+            "tool": "append_event",
+            "input": { "kind": "prompt", "content": "${prompt}" }
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "mcp_tool",
+            "server": "sqlite-memory",
+            "tool": "append_event",
+            "input": {
+              "kind": "compaction",
+              "content": "context compaction (${trigger}) in ${cwd}; claude session ${session_id}"
+            }
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "mcp_tool",
+            "server": "sqlite-memory",
+            "tool": "append_event",
+            "input": {
+              "kind": "session-end",
+              "content": "session ended (${reason}); claude session ${session_id}"
+            },
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "mcp_tool",
+            "server": "sqlite-memory",
+            "tool": "get_resume_context",
+            "input": { "max_events": 40, "exclude_kinds": "prompt,compaction,session-end" }
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": ["run", "--no-project", "--python", "3.12", "${CLAUDE_PLUGIN_ROOT}/scripts/inject_rules.py"],
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": ["run", "--no-project", "--python", "3.12", "${CLAUDE_PLUGIN_ROOT}/scripts/cadence.py"],
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "mcp__sqlite-memory__append_event|mcp__sqlite-memory__checkpoint",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv",
+            "args": ["run", "--no-project", "--python", "3.12", "${CLAUDE_PLUGIN_ROOT}/scripts/validate_entry.py"],
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}

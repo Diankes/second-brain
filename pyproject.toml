@@ -1,0 +1,27 @@
+[project]
+name = "second-brain"
+version = "0.1.0"
+description = "Claude Code plugin: policy and hooks for a second brain on the mcp-sqlite-memory server"
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.8",
+    # The server the hooks and views run against, pinned to the release they were tested with.
+    "mcp-sqlite-memory @ git+https://github.com/Diankes/mcp-sqlite-memory@v0.2.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
