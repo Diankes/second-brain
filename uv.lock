@@ -310,8 +310,8 @@ wheels = [
 
 [[package]]
 name = "mcp-sqlite-memory"
-version = "0.2.0"
-source = { git = "https://github.com/Diankes/mcp-sqlite-memory?rev=v0.2.0#9a4a440ad519e7e06f96cdfb0c9915ff519ff5d5" }
+version = "0.3.0"
+source = { git = "https://github.com/Diankes/mcp-sqlite-memory?rev=v0.3.0#dcab3717fd6d0dd75b046547ba668c98fde3ff85" }
 dependencies = [
     { name = "mcp" },
     { name = "pydantic" },
@@ -677,7 +677,7 @@ dev = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "mcp-sqlite-memory", git = "https://github.com/Diankes/mcp-sqlite-memory?rev=v0.2.0" },
+    { name = "mcp-sqlite-memory", git = "https://github.com/Diankes/mcp-sqlite-memory?rev=v0.3.0" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.8" },
 ]

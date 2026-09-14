@@ -100,7 +100,61 @@ and sources therefore need no schema change in the server: the conventions are v
 way in and parsed on the way out. At 6,000 events the topic index takes about 20 ms and the
 "what did I learn about X and from where" join about 90 ms.
 
+## Where things live, and the one path that must match
+
+Three things need to agree on one value — the path to the `.db` file — and Claude Code does not
+check that for you:
+
+1. **The server's registered path.** Set once, when you register the server (`claude mcp add
+   ... --db <path>`, or the VS Code "Add MCP server" form). Claude Code stores this in its own
+   config: `~/.claude.json` on the machine that ran the command (per project), or `.mcp.json` in
+   the repository if you registered with `--scope project`. This lives outside the project's
+   `.claude/` folder entirely, and outside this plugin. It's what the running server actually
+   reads and writes.
+2. **The plugin's copy of the same path**, as `MCP_SQLITE_DB` in the project's
+   `.claude/settings.json` (step 3 below). The hooks (`cadence.py`, `validate_entry.py`, the
+   rules-injection script) open their own direct, read-only connection to the file for cadence
+   counting, entry validation and the session-start digest — they never go through the server,
+   and have no way to discover its registered path, so you give it to them separately, here.
+3. **Nothing cross-checks the two.** If they diverge — you move the `.db` file, or change one
+   registration and forget the other — the server keeps working against its path while the hooks
+   validate, count and inject context against a different (or missing) file, each silently. There
+   is no error that names the mismatch; the symptom is just "the assistant doesn't seem to
+   remember" or "the cadence nudge never fires."
+
+A project after setup looks like this:
+
+```
+F:\study\                        <- the Claude Code project you opened
+├── .claude\
+│   ├── skills\second-brain\     <- this plugin, git-cloned in (Install step 2)
+│   ├── settings.json            <- MCP_SQLITE_DB, SECOND_BRAIN_CADENCE, permissions
+│   ├── memory.db                <- the database itself: the path from steps 3 and 4 below
+│   └── memory.snapshots\        <- automatic snapshots, here unless --snapshot-dir says otherwise
+└── ...the rest of your project...
+
+~\.claude.json                   <- NOT inside the project: Claude Code's own global config,
+                                     holding the server registration (the --db path) per project
+```
+
+Putting the database at `<project>\.claude\memory.db` rather than loose in the project root is a
+convention, not a requirement — `--db` accepts any absolute path — but it keeps everything this
+plugin owns under one folder, easy to point a backup tool at and easy to exclude from git. Add
+`memory.db` and `memory.snapshots/` to `.gitignore`: they're a growing binary file and its
+copies, not something to put in a diff.
+
+| Setting | Lives in | Read by | Must match |
+|---|---|---|---|
+| `--db` / `MCP_SQLITE_DB` at registration | `~/.claude.json` or `.mcp.json`, via `claude mcp add` | the server process | the plugin's `MCP_SQLITE_DB` below, exactly |
+| `MCP_SQLITE_DB` (plugin-side) | project's `.claude/settings.json` | `cadence.py`, `validate_entry.py`, `inject_rules.py` | the registration above, exactly |
+| `SECOND_BRAIN_CADENCE` | project's `.claude/settings.json` | `cadence.py` only | nothing else — plugin-only setting |
+| `--snapshot-dir` / `MCP_SQLITE_SNAPSHOT_DIR` | wherever you registered the server (same place as `--db`) | the server process only | nothing else — the plugin never reads this |
+
 ## Install
+
+This plugin is not published to any Claude Code plugin marketplace, so `/plugin install
+second-brain` will not find it. Installing means cloning the repository directly into your
+project, as below.
 
 Requires the server at v0.3.0 or later (the `snapshot` tool), [uv](https://docs.astral.sh/uv/)
 and ripgrep.
@@ -161,6 +215,9 @@ and ripgrep.
 
 ## Configuration
 
+Quick reference for the plugin's own two settings; see "Where things live" above for how
+`MCP_SQLITE_DB` here relates to the server's own `--db` registration.
+
 | Variable | Read by | Default |
 |---|---|---|
 | `MCP_SQLITE_DB` | validator, cadence, rules injection | required; set it in `.claude/settings.json` |
@@ -202,6 +259,12 @@ Tested against Claude Code 2.1.263 and 2.1.270 on Windows with throwaway `claude
 Known limit: `mcp_tool` hooks cannot run at `SessionStart` on a fresh start, so the first
 resume of a session depends on the model following the injected rules. After compaction the
 reload is hook-driven.
+
+Known scope: everything above is tested on Windows only. The hook scripts are plain Python and
+should run unchanged on macOS/Linux, but path handling (the examples throughout this README use
+Windows-style paths), `uv`'s behavior on those platforms and the exact hook JSON Claude Code
+sends are not yet verified there. Treat other operating systems as untested, not unsupported, for
+now.
 
 ## Development
 

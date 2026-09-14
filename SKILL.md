@@ -1,6 +1,6 @@
 ---
 name: memory
-description: How to record and recall work with the sqlite-memory server across many sessions and months: reading papers, books and other sources, working through ideas. Use when something is worth remembering, when resuming a topic from an earlier session, when writing a checkpoint, when the memory validator refuses an entry, or to set up a new memory database (setup).
+description: "How to record and recall work with the sqlite-memory server across many sessions and months, for reading papers, books and other sources, and working through ideas. Use when something is worth remembering, when resuming a topic from an earlier session, when writing a checkpoint, when the memory validator refuses an entry, or to set up a new memory database (setup)."
 argument-hint: "[setup | resume #tag | source <key>]"
 ---
 
