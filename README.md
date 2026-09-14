@@ -197,14 +197,48 @@ and ripgrep.
    }
    ```
 
-4. Register the server for the project with the same path and the read caps raised for
-   long-form notes:
+4. Register the server for the project, with the same `--db` path as step 3 and the read caps
+   raised for long-form notes. Two ways to do it — pick whichever matches how you use Claude
+   Code, the result is identical:
+
+   **From the terminal:**
 
    ```
    claude mcp add sqlite-memory --scope local -- uvx --from git+https://github.com/Diankes/mcp-sqlite-memory@v0.3.0 mcp-sqlite-memory --db F:\study\memory.db --max-cell-chars 8000 --max-result-bytes 131072
    ```
 
-   The server name must be `sqlite-memory`: the hooks address it by that name.
+   **From the Claude Code VS Code extension**, its "Add MCP Server" form:
+
+   | Field | Value |
+   |---|---|
+   | Name | `sqlite-memory` |
+   | Transport | Local command (stdio) |
+   | Command | `uvx` |
+   | Arguments | see below, one per line |
+   | Environment variables | leave empty |
+   | Scope | Local |
+
+   ```
+   --from
+   git+https://github.com/Diankes/mcp-sqlite-memory@v0.3.0
+   mcp-sqlite-memory
+   --db
+   F:\study\memory.db
+   --max-cell-chars
+   8000
+   --max-result-bytes
+   131072
+   ```
+
+   Either way:
+   - The server name must be `sqlite-memory` — the hooks address it by that name.
+   - The `--db` value here must be character-for-character the same path you set as
+     `MCP_SQLITE_DB` in step 3. See "Where things live" above for what happens if they drift
+     apart (nothing errors; the symptom is just a plugin that seems to have stopped remembering).
+   - Scope **Local** keeps this registration private to this project, which is what makes the
+     database per-project. mcp-sqlite-memory's own README covers what **User** and **Project**
+     scope do instead, and how to register from a local clone if you're developing the server
+     itself rather than installing a release.
 
 5. Start a session in the project and run `/second-brain:memory setup` once. It creates the
    `sources` table and the views. If the hooks are not listed under `/hooks`, run
